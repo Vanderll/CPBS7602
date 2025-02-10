@@ -1,0 +1,115 @@
+---
+title: "CPBS7602 Multiple Testing & Permutations"
+author: "Lauren Vanderlinden"
+date: "Report generated: `r paste(format(Sys.Date(), '%B %d, %Y'))`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r, include=FALSE}
+rm(list=ls())
+
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+```
+
+## Multiple Testing 
+
+### Null Hypothesis 
+
+If the null hypothesis is true and there are no true differences in our populations, what would the distributions of p-values look like?
+
+```{r}
+
+# simulated data for a 2-sample t-test
+ngenes <- 5000
+nsamples <- 5
+
+pvals.null <- apply(as.matrix(1:ngenes), 
+               1, function(a) 
+                 t.test(rnorm(n = nsamples),
+                   rnorm(n = nsamples), 
+                    var.equal = TRUE)$p.value)
+
+
+ggplot(as.data.frame(pvals.null), aes(x = pvals.null)) +
+  geom_histogram(binwidth = 0.05, color = "black", fill = "darkred") +
+  labs(title = "Histogram of p-values No True Effect",
+       x = "p-values") +
+  theme_minimal(base_size=16)
+```
+
+
+### Alternative Hypothesis 
+
+If the alternative hypothesis is true and there are true differences in our populations, what would the distributions of p-values look like?
+
+
+```{r}
+# simulated data for a 2-sample t-test
+ngenes <- 5000
+nsamples <- 5
+effectsize <- 1
+
+pvals <- apply(as.matrix(1:ngenes), 
+               1, function(a) 
+                 t.test(rnorm(n = nsamples),
+                   rnorm(n = nsamples, mean=effectsize), 
+                    var.equal = TRUE)$p.value)
+
+ggplot(as.data.frame(pvals), aes(x = pvals)) +
+  geom_histogram(binwidth = 0.05, color = "black", fill = "steelblue") +
+  labs(title = "Histogram of p-values True Effect Size of 2",
+       x = "p-values") +
+  theme_minimal(base_size=16)
+```
+
+## Q-Q Plots
+
+```{r}
+# get a mix of p-values where 15% come from true effect and 85% null  
+pvals.mix <- c(sample(x=pvals, size=0.05*ngenes), 
+               sample(x=pvals.null, size=0.95*ngenes))
+
+# Order you p-values 
+pvals.mix <- pvals.mix[order(pvals.mix)]
+
+# Calculate theoretical quantiles
+n <- length(pvals.mix)
+theoretical_quantiles <- -log10((1:n) / n)
+
+# Create QQ plot
+ggplot(data = NULL, aes(x = theoretical_quantiles, y = -log10(pvals.mix))) +
+  geom_point(color = "blue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Theoretical Quantiles",
+       y = "Observed -log10(P-values)",
+       title = "QQ Plot: Mix of True/Null Effect") +
+  theme_minimal()+
+   theme(text=element_text(size=20))+
+  geom_vline(xintercept = median(theoretical.quantiles), color = "red", size=0.5)
+
+
+median(theoretical_quantiles)
+median(-log10(pvals.mix))
+```
+
+### Genomic Inflation Factor 
+
+
+```{r}
+# Function to calculate lambda
+getLambda = function(pvals){
+  chisq <- qchisq(1-pvals,1)
+  #Calculate lambda gc (λgc)
+  lambda = median(chisq)/qchisq(0.5,1)
+  return(lambda)
+}
+
+getLambda(pvals.mix)
+```

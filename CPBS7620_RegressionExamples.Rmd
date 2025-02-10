@@ -1,0 +1,112 @@
+---
+title: "CPBS7602 In-class Regression Examples"
+author: "Lauren Vanderlinden"
+date: "Report generated: `r paste(format(Sys.Date(), '%B %d, %Y'))`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+This is example code.
+
+```{r setup, include=FALSE}
+rm(list=ls()) # remove any residual data sets
+
+#knitr::opts_chunk$set(echo = FALSE)
+options(dplyr.summarise.inform = FALSE)
+
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+
+#location of data files 
+wd <- "C:/Users/vanderll/Documents/teaching/CPBS7602/data/" 
+```
+
+## Simple Linear Regression
+
+**Nut Fungus Example**
+
+A drug precursor molecule is extracted from a type of nut. The nuts are commonly contaminated by a fungal toxin that is difficult to remove during the purification process. We suspect that the amount of fungus (and hence toxin) depends on the rainfall at the growing site. We would like to predict toxin concentration from rainfall in order to judge whether it would be worth paying additional rental charges for relatively drier sites. We analyze the toxin content in a series of batches of nuts and we know the rainfall at the growing sites during the four months when the nuts are forming.
+
+**rainfall** is measured in centimeters per week and **toxin** is measured in micrograms per 100 grams of nut.
+
+```{r read_in}
+toxin <- read.table(file=paste0(wd,"fungalToxin.txt"), sep="\t", header=TRUE)
+```
+
+```{r, results='asis'}
+#make a table of only the rainfall and toxin levels
+knitr::kable(toxin[,c("rain", "toxin")], row.names=FALSE, caption="Toxin Content (microgram per 100 grams) By Amount of Rainfall (cm per week)", align=rep("c",ncol(toxin))) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+```
+
+
+```{r initial_plot}
+ggplot(toxin, aes(x=rain, y=toxin)) + geom_point()
+```
+
+```{r}
+simple_regression <- lm(toxin ~ rain, data=toxin)
+summary(simple_regression)
+```
+
+## Multiple Linear Regression
+
+Let's consider having now 4 potential predictors of concentration of fungal toxin in nuts (μg per 100g).
+1. rain - average amount of rainfall in cm per week
+2. noon_temp - average temperature (degrees Celsius) at noon
+3. sunshine - average number of hours per day of sunshine
+4. wind_speed - average wind speed in km per hour
+
+```{r, results='asis'}
+#make a table with ALL variables
+knitr::kable(toxin, row.names=FALSE, caption="Multiple Predictors of Toxin Content (microgram per 100 grams)", align=rep("c",ncol(toxin))) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+```
+
+```{r}
+multiple_regression <- lm(toxin ~ rain + noon_temp + sunshine + wind_speed, data=toxin)
+summary(multiple_regression)
+```
+
+## Multiple Regression with Interaction
+
+Say we have some prior information that the effect of rainfall on toxin levels is dependent on the temperature (as measured at noon time).  We would put this into the model as an interaction term between rainfall and the noon temperature.  
+
+```{r}
+toxin$temp_binary <- ifelse(toxin$noon_temp>median(toxin$noon_temp), 1, 0)
+interaction_regression <- lm(toxin ~ rain*temp_binary, data=toxin)
+summary(interaction_regression)
+```
+
+## Logistic Regression
+
+A questionnaire has been used to gather demographics data from some pharmacists, the data include their age and gender. 
+
+It also asked ‘Would you personally be happy to provide training in the use of the App? (Yes/No)’
+
+We are concerned with the influence of age on pharmacists’ willingness to train patients in use of a phone App.
+
+```{r}
+willing = read.table(file=paste0(wd,"AgeWould_Train.csv"),sep=",",header=TRUE)
+```
+
+```{r, results='asis'}
+knitr::kable(head(willing,10), row.names=FALSE, caption="10 example observations from study about pharmacists willingness to train patients on device", align=rep("c",ncol(willing))) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
+```
+
+```{r}
+log_mod <- glm(Would_train ~ Age + Gender, data=willing, family = "binomial")
+summary(log_mod)
+```
+
+```{r}
+# get odds ratios and their confidence intervals
+exp(cbind(coef(log_mod),confint(log_mod)))
+```
+
